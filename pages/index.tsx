@@ -3,11 +3,23 @@ import { useCallback, useEffect, useState } from "react"
 import { Select } from 'antd';
 const { Option } = Select;
 import { Pie } from '@ant-design/plots';
+import { Column } from '@ant-design/plots';
+
 import data from '../utils/data.json';
 
 enum RESPONSE {
   C = 'YES',
   NC = 'NO',
+  NA = 'NA'
+}
+enum RESPONSE_SLUG {
+  C = 'C',
+  NC = 'NC',
+  NA = 'NA'
+}
+enum SLUG_RESPONSE {
+  YES = 'C',
+  NO = 'NC',
   NA = 'NA'
 }
 const PROVIDER_HEADER_NAME = "Proveedor (responsable despacho)"
@@ -29,18 +41,19 @@ const questions = [
 const IndexPage = () => {
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number>(0);
   const [pieDataForQuestionXResponse, setPieDataForQuestionXResponse] = useState([])
-  const [pieDataForProviderXResponse, setPieDataForProviderXResponse] = useState([])
-
-  const [providers, setProviders] = useState<string[]>([])
-  const [selectedProviderIndex, setSelectedproviderIndex] = useState<number>(0);
-
+  const [dataForSupervisorXResponse, setDataForSupervisorXResponse] = useState([])
+  const [graphData, setGraphData] = useState([]);
+  const [selectedResponseType, setSelectedResponseType] = useState<string>(RESPONSE_SLUG.C);
+  const [selectedQuestionIndexForGraph, setSelectedQuestionIndexForGraph] = useState<number>(0);
   const handleChangeQuestion = (index:number) => {
     setSelectedQuestionIndex(index)
   }
-  const handleChangeProvider = (index:number) => {
-    setSelectedproviderIndex(index)
+  const handleChangeResponseType = (type:RESPONSE_SLUG) => {
+    setSelectedResponseType(type)
   }
-
+  const handleChangeQuestionForGraph = (index:number) => {
+    setSelectedQuestionIndexForGraph(index)
+  }
   const processDataForQuestionXResponse = useCallback(() => {
     let C = 0;
     let NC = 0;
@@ -72,70 +85,120 @@ const IndexPage = () => {
     ])
   }, [selectedQuestionIndex, data])
 
-  const processDataForProviderXResponse = useCallback(() => {
-    let C = 0;
-    let NC = 0;
-    let NA = 0;
+  function getKeyByValue(object, value) {
+    return Object.keys(object).find(key => object[key] === value);
+  }
 
-    data.forEach(dataObj => {
-      const response = dataObj[questions[selectedQuestionIndex]];
-      if(dataObj[PROVIDER_HEADER_NAME] === providers[selectedProviderIndex]){
-        if(response === RESPONSE.C){
-          C += 1
-        }else if (response === RESPONSE.NC){
-          NC += 1
-        }else if (response === RESPONSE.NA){
-          NA += 1
+  const processDataForSupervisorXResponse = useCallback(() => {
+    const response = [];
+    const supervisorScores = {}
+    data.forEach((dataObj, dataInd) => {
+      const truckId = dataInd + 1
+      questions.forEach((question) => {
+        if(SLUG_RESPONSE[dataObj[question]] === selectedResponseType){
+          const truckWiseResponse = {
+            [truckId]: SLUG_RESPONSE[dataObj[question]],
+            checkedBy: dataObj['CheckedBy'],
+            count: 1
+          }
+          const isDataEntryAlreadyPresent = response.filter(r => {
+            return !!r[truckId]
+          })
+          if(isDataEntryAlreadyPresent.length){
+            const index = response.findIndex(e => Number(getKeyByValue(e, selectedResponseType)) === truckId);
+            response[index].count += 1
+          }else{
+            response.push(truckWiseResponse)
+          }
         }
+      })
+    })
+    response.forEach(res => {
+      if(supervisorScores[res.checkedBy]){
+        supervisorScores[res.checkedBy].push(res.count)
+      }else{
+        supervisorScores[res.checkedBy] = [res.count]
       }
     })
+    const final = []
+    Object.keys(supervisorScores).forEach(s => {
+      final.push({
+        supervisor: s,
+        score: Number((supervisorScores[s].reduce((a, b) => a + b, 0) / supervisorScores[s].length).toFixed(1) || 0)
+      })
+    })
+    setDataForSupervisorXResponse(final)
+  }, [data, selectedResponseType])
 
-    setPieDataForProviderXResponse([
-      {
-        type: 'CUMPLE',
-        value: C
-      },
-      {
-        type: 'NO CUMPLE',
-        value: NC
-      },
-      {
-        type: 'NO APLICA',
-        value: NA
+  const processDataForgraph = useCallback(() => {
+    const response = [];
+    const truckScores = {}
+    data.forEach((dataObj, dataInd) => {
+      const truckId = dataInd + 1
+      questions.forEach((question) => {
+        const truckWiseResponse = {
+          [truckId]: SLUG_RESPONSE[dataObj[question]],
+          checkedBy: dataObj['CheckedBy'],
+          count: 1
+        }
+        const isDataEntryAlreadyPresent = response.filter(r => {
+          return !!r[truckId]
+        })
+        if(isDataEntryAlreadyPresent.length){
+          // const index = response.findIndex(e => Number(getKeyByValue(e, selectedResponseType)) === truckId);
+          // response[index].count += 1
+        }else{
+          response.push(truckWiseResponse)
+        }
+      })
+    })
+    console.log({response});
+
+    response.forEach(res => {
+      if(truckScores[res.checkedBy]){
+        truckScores[res.checkedBy].push(res.count)
+      }else{
+        truckScores[res.checkedBy] = [res.count]
       }
-    ])
-  }, [data, selectedProviderIndex])
+    })
+    const final = []
+    Object.keys(truckScores).forEach(s => {
+      final.push({
+        supervisor: s,
+        score: Number((truckScores[s].reduce((a, b) => a + b, 0) / truckScores[s].length).toFixed(1) || 0)
+      })
+    })
+  }, [data, selectedQuestionIndexForGraph])
 
-useEffect(() => {
-  setProviders(Array.from(new Set<string>(data.map(item => item[PROVIDER_HEADER_NAME]))))
-}, [data])
+  const lineGraphConfig = {
+    data: graphData,
+    isGroup: true,
+    xField: 'name',
+    yField: 'response',
+    seriesField: 'type',
+  };
+  useEffect(() => {
+    // setProviders(Array.from(new Set<string>(data.map(item => item[PROVIDER_HEADER_NAME]))))
+    // setSelectedSupervisors(Array.from(new Set<string>(data.map(item => item['CheckedBy']))))
+  }, [data])
 
-useEffect(() => {
-  processDataForQuestionXResponse()
-}, [processDataForQuestionXResponse, selectedQuestionIndex])
+  useEffect(() => {
+    processDataForQuestionXResponse()
+  }, [processDataForQuestionXResponse, selectedQuestionIndex])
 
-useEffect(() => {
-  processDataForProviderXResponse()
-}, [processDataForProviderXResponse, selectedProviderIndex])
+  useEffect(() => {
+    processDataForSupervisorXResponse()
+  }, [processDataForSupervisorXResponse, selectedResponseType])
+  useEffect(() => {
+    processDataForgraph()
+  }, [processDataForgraph, selectedQuestionIndexForGraph])
 
   const pieConfigProviderXResponse = {
-    appendPadding: 10,
-    data: pieDataForProviderXResponse,
-    angleField: 'value',
-    colorField: 'type',
-    radius: 0.8,
-    label: {
-      type: 'outer',
-      content: '{name} {percentage}',
-    },
-    interactions: [
-      {
-        type: 'pie-legend-active',
-      },
-      {
-        type: 'element-active',
-      },
-    ],
+    data: dataForSupervisorXResponse,
+    xField: 'supervisor',
+    yField: 'score',
+    seriesField: '',
+    color: '#5B8FF9',
   };
   const pieConfigQuestionXResponse = {
     appendPadding: 10,
@@ -157,22 +220,24 @@ useEffect(() => {
     ],
   };
 
+
+
   return (
     <div className="w-screen h-screen">
       <div className="w-full bg-slate-50 h-16 p-4 border-b-[1px] border-[#e6e4e4]">
         <Image src={"/logo.png"} alt="arv_logo" width={124} height={46} />
       </div>
       <div className="w-full flex">
-        <div className="w-[calc(50% -1rem)] h-full p-4 bg-blue-200 flex flex-col m-4 rounded-lg">
-          <h1 className="w-full text-center text-2xl font-thin">Provider X Response</h1>
-            <Select key={1} className="w-1/2" defaultValue={0} onChange={handleChangeProvider}>
-              {providers.map((provider:string, index:number) => (
-                <Option value={index}>{provider}</Option>
-              ))}
-            </Select>
-            <Pie {...pieConfigProviderXResponse} />
+        <div className="h-full w-[49%] p-4 bg-blue-200 flex flex-col m-4 rounded-lg">
+          <h1 className="w-full text-center text-2xl font-thin">Response X Supervisors</h1>
+          <Select key={1} className="w-1/5" defaultValue={RESPONSE_SLUG.C} onChange={handleChangeResponseType}>
+            {Object.keys(RESPONSE_SLUG).map((type:string) => (
+              <Option value={type}>{type}</Option>
+            ))}
+          </Select>
+          <Column {...pieConfigProviderXResponse} />
         </div>
-        <div className="w-[calc(50% -1rem)] h-full p-4 bg-blue-100 flex flex-col m-4 rounded-lg">
+        <div className="h-full w-[49%] p-4 bg-blue-100 flex flex-col m-4 rounded-lg">
           <h1 className="w-full text-center text-2xl font-thin">Response X Question</h1>
           <Select key={2} className="w-1/2" defaultValue={0} onChange={handleChangeQuestion}>
             {questions.map((question:string, index:number) => (
@@ -181,6 +246,15 @@ useEffect(() => {
           </Select>
           <Pie {...pieConfigQuestionXResponse} />
         </div>
+      </div>
+      <div className="m-4 p-4 py-8 bg-slate-100 rounded-lg">
+        <h1 className="w-full text-center text-2xl font-thin">Question X Response X Supervisor</h1>
+        <Select key={3} className="!my-4" defaultValue={0} onChange={handleChangeQuestionForGraph}>
+          {questions.map((provider:string, index:number) => (
+            <Option value={index}>{provider}</Option>
+          ))}
+        </Select>
+        <Column {...lineGraphConfig} />
       </div>
     </div>
   )
