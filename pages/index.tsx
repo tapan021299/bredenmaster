@@ -45,9 +45,11 @@ const IndexPage = () => {
   const [graphData, setGraphData] = useState([]);
   const [selectedResponseType, setSelectedResponseType] = useState<string>(RESPONSE_SLUG.C);
   const [selectedQuestionIndexForGraph, setSelectedQuestionIndexForGraph] = useState<number>(0);
+  const [trucks, setTrucks] = useState<number[]>([])
   const handleChangeQuestion = (index:number) => {
     setSelectedQuestionIndex(index)
   }
+
   const handleChangeResponseType = (type:RESPONSE_SLUG) => {
     setSelectedResponseType(type)
   }
@@ -130,54 +132,55 @@ const IndexPage = () => {
     setDataForSupervisorXResponse(final)
   }, [data, selectedResponseType])
 
-  const processDataForgraph = useCallback(() => {
-    const response = [];
-    const truckScores = {}
-    data.forEach((dataObj, dataInd) => {
-      const truckId = dataInd + 1
-      questions.forEach((question) => {
-        const truckWiseResponse = {
-          [truckId]: SLUG_RESPONSE[dataObj[question]],
-          checkedBy: dataObj['CheckedBy'],
-          count: 1
-        }
-        const isDataEntryAlreadyPresent = response.filter(r => {
-          return !!r[truckId]
-        })
-        if(isDataEntryAlreadyPresent.length){
-          // const index = response.findIndex(e => Number(getKeyByValue(e, selectedResponseType)) === truckId);
-          // response[index].count += 1
-        }else{
-          response.push(truckWiseResponse)
-        }
-      })
-    })
-    console.log({response});
-
-    response.forEach(res => {
-      if(truckScores[res.checkedBy]){
-        truckScores[res.checkedBy].push(res.count)
-      }else{
-        truckScores[res.checkedBy] = [res.count]
+  const getScore = (list, truckNumber, response) => {
+    const scores = []
+    console.log(Object.keys(list).forEach(truckAndId => {
+      if(truckAndId.split('|')[0] === String(truckNumber)){
+        scores.push(list[truckAndId][response])
       }
-    })
-    const final = []
-    Object.keys(truckScores).forEach(s => {
-      final.push({
-        supervisor: s,
-        score: Number((truckScores[s].reduce((a, b) => a + b, 0) / truckScores[s].length).toFixed(1) || 0)
+    }));
+    return  Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) || 0);
+  }
+  const processDataForgraph = useCallback(() => {
+    const response = {};
+    const truckScores = []
+    data.forEach((dataObj, entryIndex) => {
+      questions.forEach((question) => {
+        if(response[`${dataObj['camión']}|${entryIndex}`]){
+          if(response[`${dataObj['camión']}|${entryIndex}`][SLUG_RESPONSE[dataObj[question]]]){
+            response[`${dataObj['camión']}|${entryIndex}`][SLUG_RESPONSE[dataObj[question]]] = response[`${dataObj['camión']}|${entryIndex}`][SLUG_RESPONSE[dataObj[question]]] + 1
+          }else{
+            response[`${dataObj['camión']}|${entryIndex}`][SLUG_RESPONSE[dataObj[question]]] = 1
+          }
+        }else{
+          response[`${dataObj['camión']}|${entryIndex}`] = {
+            [SLUG_RESPONSE[dataObj[question]]]: 1
+          }
+        }
       })
     })
+    trucks.forEach(truck => {
+      Object.keys(RESPONSE).forEach(r => {
+        truckScores.push({
+          response: r,
+          x: truck,
+          score: getScore(response, truck, r)
+        })
+
+      })
+    })
+    setGraphData(truckScores)
   }, [data, selectedQuestionIndexForGraph])
 
   const lineGraphConfig = {
     data: graphData,
     isGroup: true,
-    xField: 'name',
-    yField: 'response',
-    seriesField: 'type',
+    xField: 'x',
+    yField: 'score',
+    seriesField: 'response',
   };
   useEffect(() => {
+    setTrucks(Array.from(new Set<number>(data.map(item => item['camión']))))
     // setProviders(Array.from(new Set<string>(data.map(item => item[PROVIDER_HEADER_NAME]))))
     // setSelectedSupervisors(Array.from(new Set<string>(data.map(item => item['CheckedBy']))))
   }, [data])
@@ -248,12 +251,7 @@ const IndexPage = () => {
         </div>
       </div>
       <div className="m-4 p-4 py-8 bg-slate-100 rounded-lg">
-        <h1 className="w-full text-center text-2xl font-thin">Question X Response X Supervisor</h1>
-        <Select key={3} className="!my-4" defaultValue={0} onChange={handleChangeQuestionForGraph}>
-          {questions.map((provider:string, index:number) => (
-            <Option value={index}>{provider}</Option>
-          ))}
-        </Select>
+        <h1 className="w-full text-center text-2xl font-thin">Question X Response X Truck</h1>
         <Column {...lineGraphConfig} />
       </div>
     </div>
