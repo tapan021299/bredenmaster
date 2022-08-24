@@ -229,7 +229,7 @@ const IndexPage = () => {
       </div>
       <div className="w-full flex">
         <div className="h-full w-[49%] p-4 bg-blue-200 flex flex-col m-4 rounded-lg">
-          <h1 className="w-full text-center text-2xl font-thin">Response X Supervisors</h1>
+          <h1 className="w-full text-center text-2xl font-thin">Respuesta por supervisor</h1>
           <Select key={1} className="w-1/5" defaultValue={RESPONSE_SLUG.C} onChange={handleChangeResponseType}>
             {Object.keys(RESPONSE_SLUG).map((type:string, index) => (
               <Option key={`${type}__${index}`} value={type}>{type}</Option>
@@ -238,7 +238,7 @@ const IndexPage = () => {
           <Column {...pieConfigProviderXResponse} />
         </div>
         <div className="h-full w-[49%] p-4 bg-blue-100 flex flex-col m-4 rounded-lg">
-          <h1 className="w-full text-center text-2xl font-thin">Response X Question</h1>
+          <h1 className="w-full text-center text-2xl font-thin">Respuesta por pregunta</h1>
           <Select key={2} className="w-1/2" defaultValue={0} onChange={handleChangeQuestion}>
             {questions.map((question:string, index:number) => (
               <Option key={`${question}__${index}`} value={index}>{question}</Option>
@@ -248,7 +248,7 @@ const IndexPage = () => {
         </div>
       </div>
       <div className="m-4 p-4 py-8 bg-slate-100 rounded-lg">
-        <h1 className="w-full text-center text-2xl font-thin">Question X Response X Truck</h1>
+        <h1 className="w-full text-center text-2xl font-thin">Cumplimiento por vehículo</h1>
         <Column {...lineGraphConfig} />
       </div>
     </div>
