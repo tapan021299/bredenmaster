@@ -44,7 +44,6 @@ const IndexPage = () => {
   const [dataForSupervisorXResponse, setDataForSupervisorXResponse] = useState([])
   const [graphData, setGraphData] = useState([]);
   const [selectedResponseType, setSelectedResponseType] = useState<string>(RESPONSE_SLUG.C);
-  const [selectedQuestionIndexForGraph, setSelectedQuestionIndexForGraph] = useState<number>(0);
   const [trucks, setTrucks] = useState<number[]>([])
   const handleChangeQuestion = (index:number) => {
     setSelectedQuestionIndex(index)
@@ -53,9 +52,7 @@ const IndexPage = () => {
   const handleChangeResponseType = (type:RESPONSE_SLUG) => {
     setSelectedResponseType(type)
   }
-  const handleChangeQuestionForGraph = (index:number) => {
-    setSelectedQuestionIndexForGraph(index)
-  }
+
   const processDataForQuestionXResponse = useCallback(() => {
     let C = 0;
     let NC = 0;
@@ -85,7 +82,7 @@ const IndexPage = () => {
         value: NA
       }
     ])
-  }, [selectedQuestionIndex, data])
+  }, [selectedQuestionIndex])
 
   function getKeyByValue(object, value) {
     return Object.keys(object).find(key => object[key] === value);
@@ -130,7 +127,7 @@ const IndexPage = () => {
       })
     })
     setDataForSupervisorXResponse(final)
-  }, [data, selectedResponseType])
+  }, [selectedResponseType])
 
   const getScore = (list, truckNumber, response) => {
     const scores = []
@@ -170,7 +167,7 @@ const IndexPage = () => {
       })
     })
     setGraphData(truckScores)
-  }, [data, selectedQuestionIndexForGraph])
+  }, [trucks])
 
   const lineGraphConfig = {
     data: graphData,
@@ -183,7 +180,7 @@ const IndexPage = () => {
     setTrucks(Array.from(new Set<number>(data.map(item => item['camión']))))
     // setProviders(Array.from(new Set<string>(data.map(item => item[PROVIDER_HEADER_NAME]))))
     // setSelectedSupervisors(Array.from(new Set<string>(data.map(item => item['CheckedBy']))))
-  }, [data])
+  }, [])
 
   useEffect(() => {
     processDataForQuestionXResponse()
@@ -194,7 +191,7 @@ const IndexPage = () => {
   }, [processDataForSupervisorXResponse, selectedResponseType])
   useEffect(() => {
     processDataForgraph()
-  }, [processDataForgraph, selectedQuestionIndexForGraph])
+  }, [processDataForgraph])
 
   const pieConfigProviderXResponse = {
     data: dataForSupervisorXResponse,
@@ -234,8 +231,8 @@ const IndexPage = () => {
         <div className="h-full w-[49%] p-4 bg-blue-200 flex flex-col m-4 rounded-lg">
           <h1 className="w-full text-center text-2xl font-thin">Response X Supervisors</h1>
           <Select key={1} className="w-1/5" defaultValue={RESPONSE_SLUG.C} onChange={handleChangeResponseType}>
-            {Object.keys(RESPONSE_SLUG).map((type:string) => (
-              <Option value={type}>{type}</Option>
+            {Object.keys(RESPONSE_SLUG).map((type:string, index) => (
+              <Option key={`${type}__${index}`} value={type}>{type}</Option>
             ))}
           </Select>
           <Column {...pieConfigProviderXResponse} />
@@ -244,7 +241,7 @@ const IndexPage = () => {
           <h1 className="w-full text-center text-2xl font-thin">Response X Question</h1>
           <Select key={2} className="w-1/2" defaultValue={0} onChange={handleChangeQuestion}>
             {questions.map((question:string, index:number) => (
-              <Option value={index}>{question}</Option>
+              <Option key={`${question}__${index}`} value={index}>{question}</Option>
             ))}
           </Select>
           <Pie {...pieConfigQuestionXResponse} />
