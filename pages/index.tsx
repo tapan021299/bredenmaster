@@ -224,9 +224,7 @@ const IndexPage = () => {
 
   return (
     <div className="w-screen h-screen">
-      <div className="w-full bg-slate-50 h-16 p-4 border-b-[1px] border-[#e6e4e4]">
-        <Image src={"/logo.png"} alt="arv_logo" width={124} height={46} />
-      </div>
+
       <div className="w-full flex">
         <div className="h-full w-[49%] p-4 bg-blue-200 flex flex-col m-4 rounded-lg">
           <h1 className="w-full text-center text-2xl font-thin">Respuesta por supervisor</h1>
